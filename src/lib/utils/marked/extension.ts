@@ -111,6 +111,23 @@ function detailsExtension() {
 	};
 }
 
+// CommonMark doesn't treat <audio> or <video> as block HTML, so a single-line
+// `<audio>src</audio>` becomes a paragraph of split inline tags and HTMLToken
+// never sees the src. Emit the whole line as one html token instead.
+function mediaTagExtension() {
+	return {
+		name: 'mediaTag',
+		level: 'block',
+		start: (src: string) => src.match(/^ {0,3}<(?:audio|video)\b/m)?.index,
+		tokenizer(src: string) {
+			const match = /^ {0,3}(<(audio|video)\b[^>]*>[^<\n]*<\/\2>)[ \t]*(?:\n+|$)/.exec(src);
+			if (!match) return;
+
+			return { type: 'html', block: true, pre: false, raw: match[0], text: match[1] };
+		}
+	};
+}
+
 function underlineRenderer(this: any, token: any) {
 	return `<u>${this.parser.parseInline(token.tokens)}</u>`;
 }
@@ -140,6 +157,6 @@ export default function (options = {}) {
 		tokenizer: {
 			lheading: lheadingTokenizer as any
 		},
-		extensions: [detailsExtension(), underlineExtension()]
+		extensions: [detailsExtension(), mediaTagExtension(), underlineExtension()]
 	};
 }
